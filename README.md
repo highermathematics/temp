@@ -139,3 +139,196 @@ is_disabled 'Student'
 ```
 
 这些命令涵盖了 HBase Shell 的基本操作，包括表的创建、数据插入、查询、删除和管理等功能。您可以根据实际需要选择相应的命令来操作 HBase 数据库。
+
+```java
+package org.zkpk.hbase.api;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.*;
+import org.apache.hadoop.hbase.util.Bytes;
+
+import java.io.IOException;
+import java.util.Scanner;
+
+public class HBaseAdminTest1 {
+    
+    private static Configuration conf = null;
+    private static Connection connection = null;
+    private static Admin admin = null;
+    
+    static {
+        try {
+            conf = HBaseConfiguration.create();
+            conf.set("hbase.zookeeper.quorum", "localhost");
+            conf.set("hbase.zookeeper.property.clientPort", "2181");
+            connection = ConnectionFactory.createConnection(conf);
+            admin = connection.getAdmin();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public static void createTable(String tableName, String[] fields) throws IOException {
+        TableName table = TableName.valueOf(tableName);
+        
+        if (admin.tableExists(table)) {
+            System.out.println("Table " + tableName + " exists, deleting...");
+            admin.disableTable(table);
+            admin.deleteTable(table);
+            System.out.println("Table " + tableName + " deleted successfully!");
+        }
+        
+        HTableDescriptor tableDescriptor = new HTableDescriptor(table);
+        
+        for (String field : fields) {
+            HColumnDescriptor columnDescriptor = new HColumnDescriptor(field);
+            tableDescriptor.addFamily(columnDescriptor);
+        }
+        
+        admin.createTable(tableDescriptor);
+        System.out.println("Table " + tableName + " created successfully!");
+    }
+    
+    public static void addRecord(String tableName, String row, String[] fields, String[] values) throws IOException {
+        Table table = connection.getTable(TableName.valueOf(tableName));
+        Put put = new Put(Bytes.toBytes(row));
+        
+        for (int i = 0; i < fields.length; i++) {
+            String[] parts = fields[i].split(":");
+            if (parts.length == 2) {
+                put.addColumn(Bytes.toBytes(parts[0]), Bytes.toBytes(parts[1]), Bytes.toBytes(values[i]));
+            } else {
+                put.addColumn(Bytes.toBytes(parts[0]), Bytes.toBytes(""), Bytes.toBytes(values[i]));
+            }
+        }
+        
+        table.put(put);
+        System.out.println("Record added successfully: row = " + row);
+        table.close();
+    }
+    
+    public static void scanColumn(String tableName, String column) throws IOException {
+        Table table = connection.getTable(TableName.valueOf(tableName));
+        Scan scan = new Scan();
+        
+        String[] parts = column.split(":");
+        String columnFamily = parts[0];
+        String columnQualifier = parts.length > 1 ? parts[1] : null;
+        
+        if (columnQualifier != null) {
+            scan.addColumn(Bytes.toBytes(columnFamily), Bytes.toBytes(columnQualifier));
+        } else {
+            scan.addFamily(Bytes.toBytes(columnFamily));
+        }
+        
+        ResultScanner scanner = table.getScanner(scan);
+        
+        System.out.println("====== Scanning column: " + column + " ======");
+        for (Result result : scanner) {
+            String rowKey = Bytes.toString(result.getRow());
+            System.out.println("Row key: " + rowKey);
+            
+            if (columnQualifier != null) {
+                byte[] value = result.getValue(Bytes.toBytes(columnFamily), Bytes.toBytes(columnQualifier));
+                if (value != null) {
+                    System.out.println("  " + column + " => " + Bytes.toString(value));
+                } else {
+                    System.out.println("  " + column + " => null");
+                }
+            } else {
+                result.getFamilyMap(Bytes.toBytes(columnFamily)).forEach((qual, value) -> {
+                    String qualStr = Bytes.toString(qual);
+                    String valueStr = Bytes.toString(value);
+                    if (qualStr.isEmpty()) {
+                        System.out.println("  " + columnFamily + " => " + valueStr);
+                    } else {
+                        System.out.println("  " + columnFamily + ":" + qualStr + " => " + valueStr);
+                    }
+                });
+            }
+        }
+        System.out.println("==========================");
+        
+        scanner.close();
+        table.close();
+    }
+    
+    public static void modifyData(String tableName, String row, String column) throws IOException {
+        Table table = connection.getTable(TableName.valueOf(tableName));
+        
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Please enter new value: ");
+        String newValue = scanner.nextLine();
+        
+        String[] parts = column.split(":");
+        if (parts.length != 2) {
+            System.out.println("Invalid column format, should be columnFamily:column");
+            table.close();
+            return;
+        }
+        
+        Put put = new Put(Bytes.toBytes(row));
+        put.addColumn(Bytes.toBytes(parts[0]), Bytes.toBytes(parts[1]), Bytes.toBytes(newValue));
+        
+        table.put(put);
+        System.out.println("Data modified successfully!");
+        table.close();
+    }
+    
+    public static void deleteRow(String tableName, String row) throws IOException {
+        Table table = connection.getTable(TableName.valueOf(tableName));
+        Delete delete = new Delete(Bytes.toBytes(row));
+        table.delete(delete);
+        System.out.println("Row " + row + " deleted successfully!");
+        table.close();
+    }
+    
+    public static void close() {
+        try {
+            if (admin != null) {
+                admin.close();
+            }
+            if (connection != null) {
+                connection.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public static void main(String[] args) {
+        try {
+            String tableName = "Student";
+            String[] fields = {"S_Info", "Score"};
+            createTable(tableName, fields);
+            
+            String[] fields1 = {"S_Info:S_Name", "S_Info:S_Age", "Score:Math", "Score:English"};
+            String[] values1 = {"Zhang San", "20", "85", "90"};
+            addRecord(tableName, "001", fields1, values1);
+            
+            String[] fields2 = {"S_Info:S_Name", "S_Info:S_Age", "Score:Math", "Score:English"};
+            String[] values2 = {"Li Si", "21", "90", "88"};
+            addRecord(tableName, "002", fields2, values2);
+            
+            System.out.println("\nScanning Score column family:");
+            scanColumn(tableName, "Score");
+            
+            System.out.println("\nScanning Score:Math column:");
+            scanColumn(tableName, "Score:Math");
+            
+            // modifyData(tableName, "001", "Score:Math");
+            
+            // deleteRow(tableName, "002");
+            
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            close();
+        }
+    }
+}
+```
