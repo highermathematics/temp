@@ -779,3 +779,420 @@ E-mail：yough@mail.buct.edu.cn
 1. 虚拟化定义：从发展历程（1950s概念提出→1960s大型机商用→x86/ARM服务器虚拟化→数据中心虚拟化）、系统可虚拟化原因（分层+接口调用）、定义（资源的逻辑表示）及分类（基础设施/系统/软件虚拟化）展开；  
 2. 服务器虚拟化技术：作为核心重点，涵盖基本概念（定义、功能、产品）、典型实现（寄宿/原生虚拟化）、关键特性（多实例、隔离性、封装性、高性能）及核心技术（CPU/内存/设备与I/O虚拟化、实时迁移）；  
 3. 其他虚拟化技术：包括网络虚拟化（VLAN/VPN/VxLAN等）、存储虚拟化（RAID/NAS/SAN/LVM等）、桌面虚拟化、应用虚拟化，覆盖数据中心常见虚拟化场景，为云计算奠定基础。
+
+# 虚拟化与云计算技术——云计算的关键技术与挑战（上）
+- 课程代码：CSE33205C
+- 授课教师：尤国华
+- E-mail：yough@mail.buct.edu.cn
+
+
+## 云计算的关键技术与挑战 | 内容提示
+本讲主要介绍云计算关键技术及产生的背景、要解决的问题和发展现状，OpenStack和云原生，并分析云计算环境下的技术挑战。
+
+
+## 云计算的关键技术与挑战 | 提纲目录
+- 云计算的关键技术
+- OpenStack架构介绍
+- 云原生介绍
+- 小结
+
+
+# 一、云计算的关键技术与挑战 | 云计算的关键技术
+云计算的关键技术：
+1. 快速部署
+2. 资源调度
+3. 海量数据处理
+4. 大规模消息通信
+5. 大规模分布式存储
+6. 许可证管理与计费
+
+
+## 1. 快速部署技术
+- 云计算对快速部署的要求更高
+- 云环境中，用户随时提交对资源和应用的请求
+- 不同层次云计算环境中服务的部署模式不同
+- 要部署的应用形式多样，部署工具应能适配部署对象的变化
+
+### 部署方法
+- 基于流传输的虚拟机部署方法
+- 并行部署是指将传统的顺序部署方式改变为并行执行，同时执行多个部署任务  
+  （配图说明：云部署服务器、物理主机A、物理主机B、物理主机C、企业内部局域网、解决方案的镜像文件）
+- 协同部署技术是将虚拟机镜像在多个目标物理机之间的网络中传输  
+  （配图说明：物理主机A、物理主机B、物理主机C、协同部署器、云部署服务器、协同控制器、部署控制器、镜像拷贝器、镜像文件、部署控制消息、企业内部局域网、协同控制消息、文件传输）
+
+
+## 2. 资源调度
+- 定义：云计算资源调度是指根据业务需求，对计算、存储、网络等资源进行动态分配和管理的过程，以确保资源的高效利用和任务的顺利完成
+- 把资源合理地分配给应用以便高效处理业务
+- 资源调度本质是多目标优化问题
+
+### 常见的调度算法
+- 先进先出调度（FIFO)
+- 短作业优先调度(SJF)
+- 优先级调度(Priority Scheduling)
+- 负载均衡调度算法
+- 轮转调度（RoundRobin)
+- 加权轮转调度(Weighted RoundRobin)
+- 最小连接数法（Least Connections）
+
+### 资源调度性能评估指标
+- 平均响应时间
+- 资源利用率
+- 任务完成率
+
+### 云计算资源调度的发展趋势
+- 智能化调度
+- 绿色调度
+
+
+## 3. 海量数据处理
+- 定义：海量数据处理是指对大规模数据的计算和分析，通常数据规模可以达到PB级别甚至EB级别。
+- MapReduce模型
+
+### MapReduce 原理图
+（配图说明：User Program、Master、map worker、reduce worker、Input files、Map phase、Intermediate files（on local disks）、Reduce phase、Output files；流程标注：(1) fork、(2) assign、(3) read、(4) local write、(5) remote read、(6) write）
+
+### MapReduce的计算过程：
+- 拆分输入数据（split)
+- 执行Map方法
+- Reduce阶段的排序与合并
+
+
+## 4. 大规模消息通信
+- 云计算中不同服务之间是以消息通信进行协作的
+- 消息通信又分为同步通信和异步通信两种。
+
+### 同步与异步通信示意图
+（配图说明：
+- 同步交互（Synchronous）：Client发送Request，等待响应（Waiting for response），Server返回Response
+- 异步交互（Asynchronous）：Client发送Request，继续工作（Continue Working），Server返回Response）
+
+- 同步消息通信，直接请求服务器端的服务，并等待服务结果返回后才继续执行
+  - 同步消息通信不适用于云计算的原因：
+    - 客户端系统因为需要同步等待而无法继续处理任务
+    - 造成服务器端系统资源被长期占用
+    - 降低服务的可用性
+
+- 异步消息通信：客户端和服务器并不直接通信，客户端把请求以消息的形式放在请求消息队列里，然后继续处理其他业务逻辑，服务实例则会从请求消息队列中获取请求消息，并且将处理结果放入响应消息队列中，然后立即处理下一个请求
+  - 异步消息通信适用于云计算的原因：
+    - 使得服务之间解耦合，为服务的高可用性提供支撑
+    - 根据消息队列的长度和类型预测工作负载变化，有利于服务的可伸缩性
+
+### Kafka原理
+（配图说明：Producer（多个）通过send发送消息到Kafka cluster（包含多个Kafka broker）；Kafka通过Zookeeper管理集群元数据；Consumer（多个）通过pull从Kafka cluster获取消息）
+
+
+## 5. 大规模分布式存储
+- 分布式文件系统允许用户像访问本地文件系统一样访问远程服务器的文件系统
+- 云环境的存储服务基于分布式文件系统，并根据云存储的特征做相应的配置和改进
+- GFS: Google File System
+
+### GFS 架构图
+（配图说明：应用程序、GFS客户端（GFS端）、Master（包含文件命空间、Chunk元数据）、Chunk Server（多个，包含Chunk数据）；数据流向：应用程序→GFS客户端→Master（控制信息）→Chunk Server（数据信息）；标注：eq/ddf/、Chunk eto0、数据、控制信息、数据信息）
+
+### GFS的特点：
+- 高可靠性
+- 高扩展性
+- 高性能
+- 适应大文件
+
+
+## 6. 许可证管理与计费
+- 传统的软件许可证计费模型下，用户往往购买了超出其使用量的许可证数量
+- 云环境下按需付费，购买软件许可证
+- 云环境计费模型，典型的如EC2和阿里
+- 存在的问题：大量的软件、硬件提供商目前还没制定出其产品对应在云计算环境下的计费模式
+
+
+# 二、云计算的关键技术与挑战 | OpenStack架构介绍
+## 1. OpenStack架构简述
+- OpenStack是一套资源管理平台，云操作系统
+- 提供了一个部署云的操作平台或工具集，用于建立公共和私有云
+- 开源、免费、Python编写
+- 2010年NASA和Rackspace公司将其开源
+
+### OpenStack的架构
+（配图说明：
+- CLIENT TOOLS：WEB FRONTENDS（Horizon、Skyline）、CLIs（OpenStackClient）、SDKs（Python SDK）
+- OPERATIONS TOOLING：WORKLOAD PROVISIONING、APPLICATION LIFECYCLE、ORCHESTRATION（Heat、Mistral、Aodh）、MONITORING SERVICES（Ceilometer、Venus）、Magnum、Trove、Freezer、Masakari、Zagar、Blazar
+- STORAGE：OBJECT（Swift）、BLOCK（Cinder）、FILE（Manila）
+- COMPUTE：VIRTUAL MACHINES（Nova）、CONTAINERS（Zun）
+- RESOURCE OPTIMIZATION：Watcher、Vitrage
+- INTEGRATION ENABLERS：BILLING /BUSINESS LOGIC（Adjutant、CloudKitty）、CONTAINER SERVICES（Kuryr）、ACCELERATORS（Cyborg）、NETWORKING（SDN、LOAD BALANCING、DNS）（Neutron、Octavia、Designate）、HARDWARE LIFECYCLE（BARE METAL（Ironic））、NFV（Tacker）
+- TESTING / BENCHMARK：Tempest、Rally
+- SHARED SERVICES：IDENTITY（Keystone）、SCHEDULING（Placement）、IMAGES（Glance）、SECRETS（Barbican）
+- LIFECYCLE MANAGEMENT：DEPLOYMENT / LIFECYCLE TOOLS（Kolla-Ansible、OpenStack-Charms、Bifrost、Kayobe、Puppet、OpenStack-Helm、OpenStack-Ansible）、PACKAGING RECIPES FOR Containers（LOCl, Kolla）
+- 版本：openstack Version 2025.04.01）
+
+### OpenStack的各个组件作用及关系
+- Keystone-认证服务（Identity Service)
+- Nova-计算服务（Compute)
+- Cinder-块存储服务（Block Storage)
+- Swift-对象存储服务（Object Storage)
+- Neutron-网络服务（Network)
+- Glance-镜像服务（Image Service)
+- Horizon-UI服务（Dashboard）
+- Ceilometer-计量服务（Metering)
+- Heat-编排服务（Orchestration)
+- Trove-数据库服务（Database Service）
+
+## 2. OpenStack各个组件介绍
+### （1）Keystone认证服务
+Keystone为所有的OpenStack组件提供认证和访问策略服务，它依赖自身REST系统进行工作，主要对Swift、Glance、Nova、Neutron、cinder等进行认证和授权
+
+#### Keystone认证流程
+（配图说明：User、Keystone、Neutron、Glance；流程包含：Credentials（凭证）、Token（令牌）、认证交互过程标注）
+
+### （2）Nova计算服务
+- Nova是OpenStack计算的弹性控制器
+- Nova负责管理虚机实例
+- Nova本身不提供虚拟化功能，但可以和虚拟机的宿主机进行交互
+- Nova通过Web服务API来对外提供处理接口
+
+#### Nova架构
+（配图说明：
+- 控制节点：Nova-API（接收REST消息）、Nova-Scheduler（选择合适的主机）、Nova-Conductor（数据库操作和复杂流程控制）、Database（DB）、Messaging Queue（消息队列）
+- 计算节点：Nova-Compute（虚拟机生命周期管理和资源管理）、Hypervisor
+- 交互关系：User→Nova-API（REST）→Nova-Scheduler→Nova-Conductor→Database；Nova-Compute与Messaging Queue、Hypervisor交互；Nova-API与Keystone、Glance、Cinder、Neutron交互
+- 组件功能标注：Nova-API：接收REST消息；Nova-Conductor：数据库操作和复杂流程控制；Nova-Scheduler：选择合适的主机；Nova-Compute：虚拟机生命周期管理和资源管理）
+
+### （3）Cinder存储服务
+- 提供数据块存储服务
+- Cinder本身不是一种存储技术，并没有实现对块设备的实际管理和服务
+- 可插拔驱动架构设计，不同的块设备服务厂商在Cinder中以驱动的形式与OpenStack进行整合
+- 后端支持LVM、NFS、Ceph和其他商业存储产品方案
+
+#### Cinder架构
+（配图说明：
+- Client通过REST与Cinder-API交互
+- Cinder-API连接Messaging Queue，与Cinder-Scheduler、Cinder-Volume、Cinder-Backup通信
+- Cinder-Volume（多个）：每个Cinder-Volume对应Volume Driver（如分布式存储（Ceph）、SAN存储、LVM逻辑存储），部署在块存储节点上
+- 交互标注：REST、过程调用、Messaging Queue）
+
+### （4）Swift对象存储服务
+- Swift为OpenStack提供高可用、分布式对象存储服务
+- 可以高效、安全且廉价地存储大量数据
+- 适合存储需要弹性扩展的非结构化数据
+- 适合存放更新频率比较低的静态数据
+
+#### Swift 在OpenStack中的作用
+（配图说明：
+- Swift：Stores images in、Backups volumes in；与Glance（Provides images）、Cinder（Provides volumes for）、Nova（Provisions）交互
+- 文字说明：Swift并不是文件系统或者实时的数据存储系统，它称为对象存储，用于永久类型的静态数据的长期存储，这些数据可以检索、调整，必要时进行更新；最适合存储的数据类型的例子是虚拟机镜像、图片存储、邮件存储和存档备份；因为没有中心单元或主控结点，Swift提供了更强的扩展性、冗余和持久性）
+
+### （5）Neutron网络服务
+- Neutron提供网络服务，可插拔的架构设计，支持主流网络供应商及技术，SDN
+- Neutron提供的网络服务：
+  - 二层交换Switching，Linux Bridge/Open vSwitch
+  - 三层路由Routing
+  - 负载均衡
+  - 防火墙
+  - VPN
+
+#### Neutron架构
+（配图说明：Neutron相关组件及交互关系图，具体组件及连接关系以原PPT图示为准）
+
+### （6）Glance镜像服务
+- Glance是一套虚拟机镜像发现、注册、检索系统
+- 可以将镜像存储到NFS、swift和ceph中
+- 依赖KeyStone进行认证
+- Nova调用Glance模块提供镜像服务
+
+#### Glance的功能
+（配图说明：Glance功能模块及交互关系图，具体功能点及连接关系以原PPT图示为准）
+
+### （7）Horizon管理web接口
+- 用以管理、控制OpenStack服务的web控制面板
+- 可以管理实例、镜像、用户，创建卷和快照，访问与安全管理等
+- 用户可以在控制面板中使用终端或VNC直接访问实例
+
+#### Horizon 界面
+（配图说明：
+- 界面标题：OpenStack Dashboard
+- 登录信息：Logged in as: glfoste；Sign Out、Settings、Help
+- 项目信息：CURRENT PROJECT：sct；Project下包含Overview、Manage Compute（Instances、Volumes、Images & Snapshots、Access & Security）、Manage Network（Network Topology、Networks、Routers）、Object Store（Containers）
+- 资源使用情况：VCPUs（Used 11 of 60）、RAM（Used 58 of 200）、Floating IPs（Used 0 of 10）、Volumes（Used 58.0 GB of 4.9 TB）、Security Groups（Used 57 of 60）
+- 实例列表：Instance Name（如dminer-x86-ngz、dminer-x86-1等）、VCPUs、Disk、RAM、Uptime
+- 统计查询：Select a period of time to query its usage: From: 2014-07-01、To: 2014-07-11（提示：The date should be in YYYY-mm-dd format.）、Submit；统计结果：Active Instances: 11、Active RAM: 58GB、This Period's VCPU-Hours: 9.86、This Period's GB-Hours: 215.17；Download CSV Summary
+- 界面左侧品牌标识：ORACLE、SOLARIS）
+
+
+# 三、云计算的关键技术与挑战 | 云原生
+## 1. 云原生的发展及定义
+- 2013年Pivotal公司首次提出云原生（Cloud Native）的概念：
+- 2015年，Linux基金会发起成立云原生计算基金会（CNCF），对云原生的定义包含以下三个方面：
+  - 容器化封装
+  - 自动化管理
+  - 面向微服务架构
+- 2018年，主流云计算厂商都加入CNCF，云原生被重新定义：
+  - 云原生技术有利于各组织在公有云、私有云和混合云等新型动态环境中，构建和运行可弹性扩展的应用
+  - 云原生的代表技术包括容器、服务网格、微服务、不可变基础设施和声明式API
+  - 这些技术能够构建容错性好，易于管理和便于观察的松耦合系统
+  - 结合可靠的自动化手段，云原生技术使工程师能够轻松地对系统做出频繁和可预测的重大变更
+
+## 2. 云原生的关键技术
+结合Pivotal和CNCF的定义看，云原生主要包括如下关键技术：
+（配图说明：docker、容器、容器编排、微服务架构、Istio、服务网格、不可变基础设施、DevOps（DEV、OPS）、声明式API（Why Declarative））
+
+### （1）微服务架构
+- 微服务是一种用于构建应用的架构方案，将一个复杂的应用拆分成多个独立自治的服务，服务与服务间通过“高内聚低耦合”的形式交互
+- 微服务构建为一组通过共享结构进行交互的分布式小型独立服务
+
+#### 单体应用与微服务应用
+（配图说明：
+- 单体应用：Web层（Web应用、移动应用）、应用层（注册登录模块、商品模块、购物模块、支付模块、物流模块）、数据层（统一数据存储）
+- 微服务应用：Web层（Web应用、移动应用）、服务层（注册登录服务、商品服务、购物服务、支付服务、物流服务、售后服务，每个服务独立）、数据层（每个服务对应独立数据存储，标注1ÒS/SQL；服务间通信标注HTTP/HTTPS、gRPC、WebSocket、AMQP、BRP））
+
+#### 微服务的特征：
+- 各自都在较大的范围内实现特定业务功能
+- 独自开发，独立部署
+- 独立地封装自己的数据存储、依赖项和编程平台
+- 使用 HTTP/HTTPS、gRPC、WebSocket或AMQP等进行通信
+- 它们组合在一起形成应用程序
+
+（配图说明：注册登录微服务（SQL）、商品微服务（SQL，通信gRPC）、购物微服务（SQL，通信WebSocket）、支付微服务（SQL，通信AMQP）、物流微服务（SQL）、售后微服务（SQL），服务间通过对应协议通信）
+
+#### 微服务的优势：
+- 易于开发和维护
+- 可灵活扩展
+- 技术多样性
+- 容错性强
+
+（配图说明：注册登录微服务（SQL）、商品微服务（SQL）、短视频微服务（SQL）、支付微服务（SQL）、购物微服务（SQL）、金融微服务（SQL）、物流微服务（SQL）、售后微服务（SQL），各服务独立且可扩展）
+
+#### 微服务的劣势：
+- 管理复杂
+- 数据管理难度大
+- 网络延迟影响性能
+
+（配图说明：微服务架构下多服务交互的复杂示意图，以原PPT图示为准）
+
+### （2）容器
+- 容器是一种打包应用的方式，可以打包应用中的所有软件和软件所依赖的环境，并可实现跨平台部署
+
+#### 容器的优势
+- 容器可保持运行环境的一致性，做到一次打包，到处运行
+- 容器可使用独立的文件系统、存储、网络与资源配额
+- 与标准虚拟机相比，容器效率更高
+- 容器是微服务的最佳载体
+
+#### 容器的劣势
+- 隔离性差，存在安全隐患
+- 需要额外的工作管理持久化数据
+- 大规模部署和管理复杂
+
+### （3）容器编排
+- 容器编排是一种自动化管理容器的方式
+- 通过容器编排工具，可以轻松地管理大规模的容器集群，实现容器的高可用性、负载均衡和自动伸缩等功能
+
+#### 容器编排核心功能包括：
+- 容器管理：编排工具能够确保容器在最合适的主机上运行，优化资源使用
+- 资源管理：可对计算资源进行有效管理，确保容器能够获得所需的资源
+- 服务管理：命名空间、服务自动伸缩、自我修复、服务发现，滚动更新与回滚
+- 容器编排服务是运行云原生应用的最佳环境
+
+##### 命名空间
+- 命名空间是对一组资源和对象的抽象融合，可以将系统内部的对象划分为不同的用户组或项目组，从而实现逻辑上的隔离
+- 命名空间的功能：
+  - 隔离：将不同的应用程序隔离开来，避免命名冲突和资源竞争
+  - 权限控制：可以控制不同用户或团队的访问权限，确保他们只能访问和操作自己命名空间内的资源
+  - 资源配额：每个命名空间可以有独立的资源配额设置，如CPU、内存等
+
+###### Kubernetes的命名空间
+（配图说明：K8s cluster包含多个K8s Node；命名空间包括default namespace、dev namespace、qa namespace；每个命名空间下包含pod、deploy、svc；应用标注App1、App2，每个应用在不同命名空间下有对应的pod、deploy、svc）
+
+##### 服务自动伸缩
+- 服务自动伸缩是指根据应用程序的负载情况自动调整计算资源的分配，以实现高效利用和弹性扩展
+
+###### 常见伸缩类型：
+- HPA：根据负载情况动态调整pod副本数量  
+  （配图说明：Horizontal Pod Autoscaler（HPA）、Resource Metrics、K8s Deployment、多个Pod）
+- VPA：根据负载情况动态调整各个实例的资源使用情况  
+  （配图说明：Vertical Pod Autoscaler（VPA）、Resource、K8s Deployment、多个Pod）
+- CPA：根据集群规模按比例调整pod副本数量
+- CA：根据负载情况动态调整节点数量  
+  （配图说明：Cluster Autoscaler（CA）、Cluster Resource、K8s、多个Node）
+
+##### 自我修复
+- 自我修复：容器编排工具会自动检测容器和节点的健康状况，可在容器或节点出现问题时自动执行恢复操作，确保系统的稳定性和可用性
+- 恢复操作包括：
+  - 重启容器
+  - 替换容器
+  - 重新调度
+
+##### 服务发现
+- 服务发现：系统中的各个组件如何找到并彼此通信的过程
+- 服务发现原理：
+  - 服务提供者在启动时向服务中心注册自己的信息，包括网络地址、健康状态
+  - 服务消费者从服务注册中心获取可用的服务实例并建立连接
+
+（配图说明：服务提供者→注册→注册中心；服务消费者→发现→注册中心；服务消费者→调用→服务提供者）
+
+##### 滚动更新与回滚
+- 滚动更新与回滚：通过逐步替换旧的容器来减少对系统的影响，如果更新失败，则可通过回滚操作恢复到之前的状态
+
+###### Kubernetes的滚动更新与回滚
+（配图说明：多个ReplicaSet，分别标注template:v1、template:v2；Deployment通过ReplicaSet实现滚动更新，从v1版本逐步替换为v2版本，回滚时从v2版本恢复为v1版本；图示包含v1→v2的过渡状态，如部分ReplicaSet为v1、部分为v2）
+
+### （4）服务网格
+- 单体应用架构改为微服务架构
+- 每个微服务由两部分组成：
+  - 业务逻辑
+  - 网络功能
+
+#### 传统微服务架构
+（配图说明：微服务A、微服务B；每个微服务包含业务逻辑、网络功能（负载均衡、服务发现、熔断）、网络栈；微服务A与微服务B通过网络栈交互）
+
+- 传统微服务架构，开发人员要花费大量的精力实现网络功能
+- 为专注业务逻辑，将微服务中的网络功能抽象出来——Service Mesh
+
+- 服务网格（Service Mesh）是用于解决服务治理的基础设施层，应对云原生应用的复杂服务拓扑，提供可靠的通信传递
+
+#### 服务网格的架构
+（配图说明：微服务A、微服务B（均包含业务逻辑、网络栈）；Service Mesh包含控制层和数据层（每个微服务对应一个数据层）；控制层提供服务发现、负载均衡、熔断、超时重试、运行时动态路由、安全通信、运行时指标及分布式追踪；数据层与微服务的网络栈交互；支持HTTP1.1、HTTP/2、gRPC、TCP协议）
+
+#### 服务网格的实现
+- 通过一组轻量级网络代理（Sidecar proxy），与应用程序代码部署在一起来实现，且对应用程序透明，加速应用的微服务和云原生转型
+- 当前开源的流行的Service Mesh包括：Istio、Linkerd和Envoy等
+
+#### 微服务与边车（Sidecar）
+（配图说明：微服务与Sidecar proxy的部署关系图，每个微服务旁部署一个Sidecar proxy，以原PPT图示为准）
+
+### （5）不可变基础设施
+- 不可变基础设施是一种保持基础设施实例部署之后不可修改，只能够进行整体替换的模式
+- 任何基础设施实例（包括服务器、虚拟机、容器等）一旦创建之后便进入只读状态
+
+- 在传统数据中心内，服务器被视为“宠物”（Pets）
+- “牲畜”（Cattles）服务模型有所不同，牲畜模型采用不可变基础结构，服务器不会进行修复或修改，如果一台服务器发生故障或需要更新，则会销毁它并预配新服务器，所有操作都通过自动化完成
+
+（配图说明：左侧“宠物”模型：标注SSH、手动操作；右侧“牲畜”模型：标注自动化操作；对比两种模型的管理方式）
+
+- 不可变基础设施的基础设施实例要做到与数据无关，即：
+  - 将依赖于本地的缓存转移到分布式存储中
+  - 将依赖于本地存储的文件转移到分布式存储中，从而不会受到本地服务器重启丢失之类的影响
+  - 将依赖于本地存储的日志信息转移到标准输出中，由日志采集设备收集后统一汇总
+
+### （6）声明式API
+- 命令式 API：可直接发出让服务器执行的命令，例如：“运行容器”、“停止容器”等
+- 声明式 API：可声明期望的状态，系统将不断地调整实际状态，直到与期望状态保持一致
+
+- 为什么声明式API使系统更加健壮？
+  声明式API描述最终运行环境的状态，由系统来决定如何来创建这个环境，当运行环境与描述不符合时，系统能检测到差异，并自动修复，这样系统就有了自动容错的功能
+
+### （7）DevOps
+- DevOps是软件开发、测试和运维之间的合作，目标是自动执行软件交付和基础架构更改流程，缩短开发周期，增加部署频率，更可靠地发布
+- 它创造了一种文化和环境，可支撑快速、频繁、可靠地构建、测试和发布软件
+
+#### 开发者与运维人员的矛盾
+（配图说明：左侧开发者：“我要改变！”；右侧运维人员：“我要稳定！”；中间标注“参不透的隔离墙”）
+
+- DevOps的理念就是希望能打破这种屏障，让开发者（Development）和运维人员（Operations）一体化，从业务需求出发，向着同一个目标前进
+
+（配图说明1：DevOps流程：Develop→Test→Deploy→Monitor→Feedback，形成闭环）
+（配图说明2：DevOps核心：Culture（达成共识）、Automation（基础设施自动化）、Measurement（可度量）、Sharing（你中有我，我中有你）；NEW WAY：BUILD→RELEASE→OPERATE；标注“CDot”）
+
+
+# 四、云计算的关键技术与挑战 | 小结
+- 本讲围绕云计算关键技术、OpenStack架构、云原生三大核心内容展开，系统介绍了云计算的6项关键技术（快速部署、资源调度、海量数据处理、大规模消息通信、大规模分布式存储、许可证管理与计费）的定义、实现方式及特点；
+- 详细阐述了OpenStack的架构定位、核心组件（Keystone、Nova、Cinder、Swift、Neutron、Glance、Horizon等）的功能与交互关系；
+- 梳理了云原生的发展历程、定义演进，以及微服务架构、容器、容器编排、服务网格、不可变基础设施、声明式API、DevOps等关键技术的原理、优势与应用场景，为理解云计算技术体系及实践应用提供了全面支撑。
