@@ -1,277 +1,278 @@
-好的，完全理解！为准备开卷考试的纸质材料，最关键的是**内容完整、排版清晰、便于快速查找**。
+# Spark实验演示脚本（含讲解+指令行）
+## 一、实验平台版本
+- 操作系统：Ubuntu 24.04.2 LTS
+- Hadoop版本：3.3.5
+- JDK版本：1.8.0_371
+- Spark版本：3.4.0
 
-我已严格按照您PPT的原始内容和顺序，进行了优化排版，使其非常适合打印到Word中。您可以将以下内容直接复制到Word文档中。
+接下来我会按步骤演示每个环节的操作及结果验证
 
----
+## 二、第一部分：Spark安装及环境配置
+### 讲解要点
+1. 采用aria2c多线程下载Spark安装包，提升下载速度；
+2. 解压安装后配置环境变量，关联Hadoop类路径；
+3. 通过运行官方示例程序SparkPi验证安装成功（输出π近似值）。
 
-### **虚拟化与云计算技术**
-### **——**
-### **虚拟化的关键技术**
+### 指令行操作（按顺序执行）
+```bash
+# 1. 多线程下载Spark安装包（-x 16设置最大连接数，-s 16设置最大分片数）
+aria2c -x 16 -s 16 https://archive.apache.org/dist/spark/spark-3.4.0/spark-3.4.0-bin-hadoop3.tgz
 
-**课程代码：** CSE33205C
-**授课教师：** 尤国华
-**E-mail：** yough@mail.buct.edu.cn
+# 2. 解压到/usr/local目录（假设下载到桌面）
+sudo tar -zxvf ~/桌面/spark-3.4.0-bin-hadoop3.tgz -C /usr/local/
 
----
+# 3. 重命名为spark（简化路径）
+sudo mv /usr/local/spark-3.4.0-bin-hadoop3 /usr/local/spark
 
-### **内容提示**
+# 4. 配置Spark环境变量（关联Hadoop类路径）
+echo "export SPARK_DIST_CLASSPATH=$(/usr/local/hadoop/bin/hadoop classpath)" >> /usr/local/spark/conf/spark-env.sh
 
-- 虚拟化技术一方面可以提升基础设施利用率，实现运营开销成本最小化；另一方面可以通过整合应用栈和即时应用镜像部署来实现业务管理的高效敏捷。
-- 容器技术是目前软件部署中使用最为普遍的虚拟化技术之一。
-- 实施虚拟化按照其生命周期可分为三个重要阶段：**创建、部署和管理**。
+# 5. 验证安装（运行SparkPi示例）
+cd /usr/local/spark
+bin/run-example SparkPi
+```
 
----
+### 预期结果
+输出π的近似值（如：3.1394956974784876），同时日志显示SparkContext正常启动并停止，无报错。
 
-### **提纲目录**
+## 三、第二部分：熟悉常用SparkShell命令
+### 讲解要点
+1. SparkShell是交互式命令行工具，支持Scala语法，自动创建SparkContext（sc）和SparkSession（spark）；
+2. 演示RDD的核心操作：加载文件、计数、取首行、过滤、转换计算等；
+3. 所有操作基于弹性分布式数据集（RDD），体现Spark的惰性计算特性。
 
-1.  **容器技术**
-2.  **创建虚拟化解决方案**
-3.  **部署虚拟化解决方案**
-4.  **管理虚拟化解决方案**
-5.  **小结**
+### 指令行操作（按顺序执行）
+```bash
+# 1. 启动SparkShell（local[*]表示使用本地所有CPU核心）
+spark-shell
+```
 
----
+进入Scala交互环境后，执行以下命令：
+```scala
+# 2. 加载本地文件（Spark自带的README.md），创建RDD
+val textFile = sc.textFile("file:///usr/local/spark/README.md")
 
-### **一、 容器技术**
+# 3. 统计RDD的行数（count操作触发计算）
+textFile.count()  # 预期输出：125
 
-- **定义**：是一种轻量级虚拟化技术，它将应用程序及其依赖项（包括代码、库、运行时环境和配置文件）封装在一个标准化的单元中，实现跨平台的一致运行。
-- 包含内容：传统部署、虚拟化部署和容器部署的对比；容器和虚机的对比。
+# 4. 获取RDD的第一行内容
+textFile.first()  # 预期输出：# Apache Spark
 
-#### **Linux容器关键技术包括：**
+# 5. 过滤出包含"Spark"的行，返回新RDD并统计行数
+val sparkLines = textFile.filter(line => line.contains("Spark"))
+sparkLines.count()  # 预期输出：包含"Spark"的行数（约30+）
 
-1.  **cgroup (control group) - 硬件资源隔离划分**
-    - 作用：在容器中起到了硬件资源隔离和限制的作用。
-    - 功能：通过合理配置cgroup，可以确保每个容器在硬件资源使用上的独立性，防止资源竞争导致的性能问题。可以设置容器的CPU、内存、带宽和I/O的占比和使用次数。
-    - 示例命令：`echo 2G > /sys/fs/cgroup/memory/cgroup1/memory.limit_in_bytes`
+# 6. 计算每行的单词数，找出最大值
+textFile.map(line => line.split(" ").length).reduce((a, b) => math.max(a, b))  # 预期输出：每行最大单词数（约20+）
 
-2.  **Namespace - 操作系统资源的隔离**
-    - 作用：是容器实现**资源隔离**的基础技术。
-    - 功能：每个容器都拥有自己独立的namespace，确保不同容器之间不会共享敏感资源，提升安全性与稳定性。负责隔离特定的系统资源，包括进程ID、网络、挂载点、用户ID等。
+# 7. 退出SparkShell
+:quit
+```
 
-3.  **Union File System - 联合文件系统**
-    - 作用：可将多个目录合并为一个逻辑目录。
-    - 功能：通过联合文件系统，容器只要在镜像之上创建瘦读写层，瘦读写层属于容器独有，镜像则可在容器之间共享。
-    - 常见类型：UnionFS、aufs (Advanced Union File System)、OverlayFS等。
+## 四、第三部分：基于Spark API的独立应用开发
+### 讲解要点
+1. 分别使用Java和Scala语言开发Spark独立应用，核心逻辑为统计文件中含"a"和"b"的行数；
+2. 使用Maven进行项目构建和打包，解决Spark依赖问题；
+3. 通过spark-submit脚本提交应用，验证运行结果。
 
-#### **Docker**
+### 模块1：Java独立应用（SparkApp2）
+#### 步骤1：创建项目结构及代码
+```bash
+# 1. 创建项目目录结构
+mkdir -p ./sparkapp2/src/main/java
 
-- 是一种创建、管理、编排容器的软件。
-- 发展：DotCloud --> Docker
-- 相关内容：Docker的架构、单Docker节点容器的编排、Compose.yaml文件、Dockerfile文件、Docker集群容器的编排。
+# 2. 编写Java应用代码（SimpleApp.java）
+vim ./sparkapp2/src/main/java/SimpleApp.java
+```
+将以下代码复制到文件中：
+```java
+import org.apache.spark.api.java.*;
+import org.apache.spark.api.java.function.Function;
+import org.apache.spark.SparkConf;
 
----
+public class SimpleApp {
+    public static void main(String[] args) {
+        String logFile = "file:///usr/local/spark/README.md";
+        // 配置Spark应用：本地模式，应用名SimpleApp
+        SparkConf conf = new SparkConf().setMaster("local").setAppName("SimpleApp");
+        JavaSparkContext sc = new JavaSparkContext(conf);
+        // 加载文件并缓存（重复使用时提升效率）
+        JavaRDD<String> logData = sc.textFile(logFile).cache();
+        // 统计含"a"的行数
+        Long numAs = logData.filter(new Function<String, Boolean>() {
+            public Boolean call(String s) { return s.contains("a"); }
+        }).count();
+        // 统计含"b"的行数
+        Long numBs = logData.filter(new Function<String, Boolean>() {
+            public Boolean call(String s) { return s.contains("b"); }
+        }).count();
+        // 输出结果
+        System.out.println("Lines with a:" + numAs + ", lines with b:" + numBs);
+        sc.stop(); // 关闭SparkContext
+    }
+}
+```
 
-### **二、 创建虚拟化解决方案**
+#### 步骤2：编写Maven依赖文件（pom.xml）
+```bash
+# 进入项目根目录
+cd ./sparkapp2
+# 创建pom.xml文件
+vim pom.xml
+```
+复制以下依赖内容：
+```xml
+<project>
+    <groupId>cn.edu.buct</groupId>
+    <artifactId>simple-project</artifactId>
+    <modelVersion>4.0.0</modelVersion>
+    <name>Simple Java Project</name>
+    <packaging>jar</packaging>
+    <version>1.0</version>
+    <dependencies>
+        <!-- Spark Core依赖 -->
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-core_2.12</artifactId>
+            <version>3.4.0</version>
+        </dependency>
+    </dependencies>
+    <build>
+        <sourceDirectory>src/main/java</sourceDirectory>
+        <plugins>
+            <!-- Java编译插件 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+```
 
-- **创建者**：一般由服务提供商和服务集成商完成。
-- **组成**：虚拟化解决方案是由一系列**虚拟器件**组成的。
-- **一般步骤**：
-    1.  创建基本的虚拟器件
-    2.  发布虚拟器件
-    3.  虚拟器件发布后的镜像管理
-    4.  物理机环境转换为虚拟机环境的技术
+#### 步骤3：打包并执行应用
+```bash
+# 1. 打包（需提前安装Maven，验证：mvn -v）
+mvn clean package -Dmaven.test.skip=true
 
-#### **1. 创建基本虚拟镜像**
+# 2. 使用spark-submit提交应用
+/usr/local/spark/bin/spark-submit --class "SimpleApp" target/simple-project-1.0.jar 2>&1 | grep "Lines with a"
+```
 
-- **虚拟机**：是指通过虚拟化软件套件模拟的、具有完整硬件功能的、运行在一个隔离环境中的逻辑计算机系统。
-- **虚拟镜像**：是虚拟机的存储实体，它通常是一个或多个文件，其中包括了虚拟机的配置信息和磁盘数据，还可能包括内存数据。虚拟镜像是虚拟机的**静态表示**。
-- **虚拟镜像与操作系统的镜像安全文件不同**。
-- **使用场景**：快速创建虚机，便于系统的测试和部署；生成快照，便于备份。
-- **虚拟机镜像分类**：
-    - **无状态**：只有虚拟机的磁盘数据
-    - **有状态**：能够保存虚拟机快照时的内存状态
-- **创建流程**：
-    1.  在虚拟化管理平台设定虚拟硬件参数，创建虚机
-    2.  安装客户操作系统和相关软件
-    3.  关停虚拟机（不关也可以），保存虚拟镜像和配置文件
+#### 预期结果
+输出：`Lines with a: 72, lines with b: 39`
 
-#### **2. 创建虚拟器件镜像**
+### 模块2：Scala独立应用（SparkApp3）
+#### 步骤1：创建项目结构及代码
+```bash
+# 1. 创建项目目录结构
+mkdir -p ./sparkapp3/src/main/scala
 
-- **计算机器件**：是具有特定功能和有限配置能力的计算设备，如电子书、智能音箱、家用路由器。
-- **虚拟器件**：是一个包括了预安装、预配置的操作系统、中间件和特定应用的虚拟机。
-- **虚拟器件技术**：是服务器虚拟化技术和计算机器件技术结合的产物，有效吸收了两种技术的优点。虚拟器件是计算机器件的“数字化”。
-- **优点**：虚拟器件文件中既包含客户操作系统，也包含了中间件及应用软件，便于软件的部署和安装。
-- **应用**：
-    - **传统方式**：安装光盘或下载软件，安装、配置
-    - **新方式**：虚拟器件下载 -> 释放 -> 简单配置
-- **创建流程**：
-    - 现有服务包含多个虚拟器件，要考虑**各个虚拟器件的关联关系**。
-    - 调研和分析如何把现有的服务迁移、封装成若干个虚拟器件。
-    - 然后编写相应配置脚本，制作出来的虚拟器件是一个**通用模板**。
-    - 根据通用模板生成多个实例，将解决方案交付给最终用户。
-- **示例**：Web三层架构转为虚拟器件镜像文件。
+# 2. 编写Scala应用代码（SimpleApp.scala）
+vim ./sparkapp3/src/main/scala/SimpleApp.scala
+```
+将以下代码复制到文件中：
+```scala
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkConf
 
-#### **3. 发布虚拟器件镜像**
+object SimpleApp {
+    def main(args: Array[String]): Unit = {
+        val logFile = "file:///usr/local/spark/README.md"
+        // 配置Spark应用（默认本地模式，可通过spark-submit指定）
+        val conf = new SparkConf().setAppName("Simple Scala Application")
+        val sc = new SparkContext(conf)
+        // 加载文件（指定2个分区）并缓存
+        val logData = sc.textFile(logFile, 2).cache()
+        // 统计含"a"和"b"的行数（Scala匿名函数简化语法）
+        val numAs = logData.filter(line => line.contains("a")).count()
+        val numBs = logData.filter(line => line.contains("b")).count()
+        // 格式化输出结果
+        println(s"Lines with a: $numAs, Lines with b: $numBs")
+        sc.stop()
+    }
+}
+```
 
-- **背景**：各厂商虚拟器件产品的接口规范、操作模式互不兼容，阻碍了虚拟化技术的进一步发展和推广。
-- **标准**：DMTF制定了**开放虚拟化格式（OVF）**。
-- **OVF标准**：为虚拟器件的包装和分发提供了开放、安全、可移植、高效和可扩展的描述格式。
-- **OVF定义了三类关键格式**：
-    1.  虚拟器件模板和解决方案模板的OVF描述文件
-    2.  虚拟器件的发布格式OVF包（OVF package, ova文件）
-    3.  虚拟器件的部署配置文件OVF Environment
-- **OVF文件**：
-    - 每个虚拟化解决方案都能通过一个OVF文件来描述。
-    - 定义了虚拟器件的数量，每个虚拟器件的硬件参数信息、软件配置参数信息。
-    - 使用XML格式描述一个虚拟器件，或若干个虚拟器件整合成的一个解决方案。
-    - 包括各个虚拟器件之间的关联关系、配置属性和启动的先后顺序等关键信息。
-    - 部署工具能解析OVF文件，并快速地部署其中描述的各个虚拟器件。
-- **OVA包中的文件**：OVF文件等。
+#### 步骤2：编写Maven依赖文件（pom.xml）
+```bash
+# 进入项目根目录
+cd ./sparkapp3
+# 创建pom.xml文件
+vim pom.xml
+```
+复制以下依赖内容：
+```xml
+<project>
+    <groupId>cn.edu.buct</groupId>
+    <artifactId>simple-project</artifactId>
+    <modelVersion>4.0.0</modelVersion>
+    <name>Simple Scala Project</name>
+    <packaging>jar</packaging>
+    <version>1.0</version>
+    <repositories>
+        <repository>
+            <id>jboss</id>
+            <name>JBoss Repository</name>
+            <url>http://repository.jboss.com/maven2/</url>
+        </repository>
+    </repositories>
+    <dependencies>
+        <!-- Spark Core依赖（对应Scala 2.12版本） -->
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-core_2.12</artifactId>
+            <version>3.4.0</version>
+        </dependency>
+    </dependencies>
+    <build>
+        <sourceDirectory>src/main/scala</sourceDirectory>
+        <plugins>
+            <!-- Scala编译插件 -->
+            <plugin>
+                <groupId>org.scala-tools</groupId>
+                <artifactId>maven-scala-plugin</artifactId>
+                <version>2.15.2</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <scalaVersion>2.12.17</scalaVersion>
+                    <args>
+                        <arg>-target:jvm-1.8</arg>
+                    </args>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+```
 
-#### **4. 管理虚拟器件镜像**
+#### 步骤3：打包并执行应用
+```bash
+# 1. 打包（跳过测试）
+mvn clean package -Dmaven.test.skip=true
 
-- 创建、打包好的虚拟器件镜像会被发布到公共的可访问的**仓库**，准备被下载或部署。
-- **管理挑战**：镜像文件大（几GB甚至几十GB），数量多。
-- **管理目标**：
-    1.  保证镜像文件能够被快速地检索到
-    2.  尽量减小公共仓库的磁盘使用量
-    3.  能够对镜像进行版本控制
-- **管理方式**：通常采用对镜像文件的**元数据信息**和**文件内容**分别存储的方式。
-    - **元数据信息**：主要包括文件名、大小、创建日期、修改日期、读写权限等，以及指向文件内容的指针链接。
-    - **文件内容**：采用**切片**的方式进行存储，为每一个文件分配一个唯一的标识符，以及文件内容的摘要串。
+# 2. 提交应用到Spark
+/usr/local/spark/bin/spark-submit --class "SimpleApp" target/simple-project-1.0.jar
+```
 
-#### **5. 迁移到虚拟化环境**
+#### 预期结果
+输出：`Lines with a: 72, Lines with b: 39`（与Java应用结果一致，验证代码正确性）
 
-- **风险**：
-    1.  找不到以前开发团队的相关人员
-    2.  服务所依赖的老系统的特定接口或函数库在新的系统里面并不一定兼容
-- **P2V（Physical to Virtual）**：
-    - **定义**：将操作系统、应用程序和数据从物理计算机的运行环境迁移到虚拟环境中。
-    - **优点**：通过这样整体性的解决方案，管理员不再需要触及与系统紧密融合的应用的相关代码，大大提高了系统迁移的可行性和成功率。
-- **驱动的替换**：硬件设备从“真实的”变成了“虚拟的”，相应的驱动程序也需要替换成驱动“虚拟”硬件的程序。
-- **P2V实现的基本步骤**：
-    1.  **制作镜像**：通过镜像制作工作将物理机的系统整体制作成物理机的镜像
-    2.  **选择驱动**：替换掉镜像中与特定硬件设备相关的驱动程序，使镜像能够在虚拟环境中运行
-    3.  **定制配置**：启动虚拟镜像的实例
-- **Converter工具流程**：
-    1.  在源计算机上安装代理（agent），该代理会把源卷做快照
-    2.  在目标计算机上创建一台虚拟机，随后代理将源卷拷贝到目标计算机中
-    3.  完成转换过程，安装所需要的驱动来允许操作系统在虚拟机中引导，并且可以自定义虚拟机（如更改IP地址）
-- **其他迁移**：
-    - **V2P**：Ghost
-    - **V2V**: 不同虚拟化平台之间的迁移
+## 五、演示总结
+老师，本次实验已完整演示以下核心内容：
+1. 成功完成Spark环境的安装与配置，通过SparkPi示例验证环境可用性；
+2. 熟练使用SparkShell进行RDD的加载、过滤、统计等交互式操作；
+3. 分别使用Java和Scala语言开发Spark独立应用，通过Maven打包并提交运行，实现了文本内容的统计需求，结果一致且正确。
 
----
-
-### **三、 部署虚拟化解决方案**
-
-#### **1. 规划部署环境**
-
-- **虚拟化优势**：显著地提高服务器利用率，便于管理，降低能耗、节省空间。
-- **虚拟化带来的问题**：在管理层次上增加了虚拟化层，增加了资源管理和调度的复杂性。
-- **构建虚拟化环境步骤**：
-    1.  **投资回报分析**：得到数据中心实施虚拟化后效益是否能够提高的预测值，规模越大越合算。
-    2.  **资源规划**：对数据中心的计算、存储、网络资源进行统一规划。
-- **虚拟化平台厂商及产品的选择**：
-    - **国内厂商**：多数基于KVM做二次开发，比如华为的FusionSphere、华三的UIS、阿里的飞天、Zstack等。
-    - **国外厂商**：VMware公司的vSphere、Citrix（思杰）的Xen及微软公司的Hyper-V等。
-    - **选择依据**：需要综合考虑这些产品的价格、功能、兼容性，找到适合自己的产品。
-
-#### **2. 部署虚拟器件**
-
-- **定义**：是将虚拟器件支持的解决方案交付给用户的过程中最重要的一环，即虚拟机的**实例化**的阶段。
-- **部署流程（6个步骤）**：
-    1.  **选择虚拟器件并定制化**
-    2.  **保存定制化参数文件为OVF Environment文件**
-    3.  **选择部署的目标物理机**
-    4.  **复制虚拟器件的镜像文件和配置文件**
-    5.  **启动虚拟器件**
-    6.  **在虚拟器件中进行激活**
-
-##### **（1）选择虚拟器件并定制化**
-- 虚拟硬件信息：CPU、内存等
-- 软件信息：操作系统、中间件、应用程序相关的配置
-- 网络参数：IP地址、子网掩码、DNS服务器、主机名、域名、端口等
-- 安全策略、账户信息
-
-##### **（2）保存定制化参数文件**
-- 定制化信息被保存为两个文件：
-    - 虚拟机的**硬件配置信息**：用于被虚拟化平台调用来启动虚拟机（遵循厂商格式，如ova、cow，qcow2等）。
-    - 虚拟器件内**软件定制信息（OVF Environment）**。
-
-##### **（3）选择部署的目标物理机服务器**
-- 要求：网络畅通，磁盘空间足够，CPU、内存满足要求，虚拟化平台与虚拟器件的格式兼容。
-
-##### **（4）拷贝虚拟器件的相关文件**
-- 部署工具从虚拟器件库中提取出用户选择的虚拟器件的OVF包，再将他们与第2步生成的OVF Environment文件、虚拟机配置文件一起拷贝到目标物理机上。
-
-##### **（5）在目标机上启动部署后的虚拟器件。**
-- 部署工具远程在目标机上执行一组命令，来完成虚拟器件的启动。
-- **关键过程**：将第（2）步生成的软件配置参数文件（OVF Environment）传送到虚拟器件中。
-- **传送方式**：采用**虚拟磁盘方式**，也就是说将OVF Environment文件打包为一个**ISO镜像文件**。
-- **操作步骤**：
-    1.  将OVF Environment文件打包为ISO文件
-    2.  创建虚拟磁盘项
-    3.  在虚拟机管理平台上注册虚拟器件信息
-    4.  启动虚拟器件
-- 当虚拟器件启动后，在虚拟器件内部就可以看到一个磁盘设备，其中存放着OVF Environment文件。
-
-#### **3. 激活虚拟器件**
-
-- **定义**：在虚拟器件内部读取OVF Environment文件的信息，根据这些信息对虚拟器件内的软件进行定制。
-- **激活的自动化程度分类**：
-    1.  **完全手动的激活**
-    2.  **基于脚本的手动激活**
-    3.  **单个虚拟器件的自动激活**
-    4.  **组成解决方案的多个虚拟器件的协同激活**
-
----
-
-### **四、 管理虚拟化解决方案**
-
-采用虚拟化数据中心解决方案，可以便于实现**集中监控、便捷管理、动态优化、高效备份**四个方面的功能。
-
-#### **1. 集中监控**
-
-- **传统数据中心分层**：硬件、网络、操作系统、中间件和应用
-- **虚拟化数据中心分层**：硬件、虚拟化层、网络、操作系统、中间件和应用
-- **管理平台监控要求**：
-    1.  能够集中监控数据中心的所有资源
-    2.  能够集中监控所有虚拟器件上运行的解决方案的状态和流程
-- **示例**：各个云产品都有集中监控功能，如VMWare的VCenter。
-
-#### **2. 便捷管理**
-
-- **数据中心的三类管理实体**：
-    1.  **基础设施**（计算节点、存储、网络等）：常规操作有开关物理机、配置网络等
-    2.  **虚拟机**：常规操作有开关虚拟机、调整虚拟机资源、迁移虚拟机、进行快照操作等
-    3.  **虚拟机内的应用**：常规操作有开关软件、配置软件等
-- **虚拟机内部应用的管理**：需要借助**虚拟机内部的管理模块**。
-    - 内部管理模块可以在创建虚拟器件时安装，也可以在虚拟机部署以后植入进去。
-    - 内部管理模块与虚拟化管理平台协同工作。
-- **常见的内部管理模块**：vmware的vmtools，UIS的castools, ZStack的性能优化工具。
-- 虚拟化管理平台可支持二次开发或第三方管理。
-
-#### **3. 动态优化**
-
-- **背景**：相对物理机，虚拟机的性能有所下降。
-- **目的**：采用动态优化技术可以弥补采用虚拟化后带来的性能下降。
-- **动态优化技术定义**：在虚拟化环境中，根据应用负载的变化为其所在的虚拟机及时、有效地分配资源，既不会因为资源缺乏而影响业务系统运行，也不会造成严重的资源浪费。
-- **技术组成**：
-    - 监控各个应用、服务的实时负载量
-    - 资源分析的动态调度算法
-
-#### **4. 高效备份**
-
-- 以物理机为单位的数据备份技术不能满足虚拟化平台的备份需求。
-- 主流的虚拟机备份机制有**虚拟机内**和**虚拟外**两种方式。
-
-##### **虚拟机内备份**
-- **方式**：类似传统物理机的备份方法，在虚拟机内安装代理软件解决备份问题。
-- **优点**：实施过程和传统的物理服务器备份一样，最大限度地兼容了传统的备份机制，减少了为升级备份而投入的初期成本。
-- **缺点**：需要侵入虚拟机，备份大量虚机时工作量大，管理不便。
-
-##### **虚拟机外备份**
-- **方式**：基于虚拟机的**快照**技术进行备份。
-- **优点**：备份速度快、管理方便、不需要在虚机中安装代理、备份不影响业务运行。
-- **缺点**：需要在虚拟化平台中安装代理，需要专门设备，成本较高。
-
----
-
-### **五、 小结**
-
-（此部分PPT内容未提供具体文本，通常是对整个课程的要点总结）
-
----
-
-希望这份严格按照原始PPT结构、内容完整的排版能帮助您在考试中取得好成绩！祝您考试顺利！
+实验过程中，我掌握了Spark的核心概念（RDD、SparkContext、惰性计算）、环境配置要点以及API开发流程，达到了实验目标。
