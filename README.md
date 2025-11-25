@@ -168,29 +168,24 @@ vim ./sparkapp2/src/main/java/SimpleApp.java
 ```
 将以下代码复制到文件中：
 ```java
+/*** SimpleApp.java ***/
 import org.apache.spark.api.java.*;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.SparkConf;
-
+ 
 public class SimpleApp {
     public static void main(String[] args) {
-        String logFile = "file:///usr/local/spark/README.md";
-        // 配置Spark应用：本地模式，应用名SimpleApp
-        SparkConf conf = new SparkConf().setMaster("local").setAppName("SimpleApp");
-        JavaSparkContext sc = new JavaSparkContext(conf);
-        // 加载文件并缓存（重复使用时提升效率）
-        JavaRDD<String> logData = sc.textFile(logFile).cache();
-        // 统计含"a"的行数
-        Long numAs = logData.filter(new Function<String, Boolean>() {
+        String logFile = "file:///usr/local/spark/README.md"; // Should be some file on your system
+        SparkConf conf=new SparkConf().setMaster("local").setAppName("SimpleApp");
+        JavaSparkContext sc=new JavaSparkContext(conf);
+        JavaRDD<String> logData = sc.textFile(logFile).cache(); 
+        long numAs = logData.filter(new Function<String, Boolean>() {
             public Boolean call(String s) { return s.contains("a"); }
-        }).count();
-        // 统计含"b"的行数
-        Long numBs = logData.filter(new Function<String, Boolean>() {
+        }).count(); 
+        long numBs = logData.filter(new Function<String, Boolean>() {
             public Boolean call(String s) { return s.contains("b"); }
-        }).count();
-        // 输出结果
-        System.out.println("Lines with a:" + numAs + ", lines with b:" + numBs);
-        sc.stop(); // 关闭SparkContext
+        }).count(); 
+        System.out.println("Lines with a: " + numAs + ", lines with b: " + numBs);
     }
 }
 ```
@@ -198,52 +193,46 @@ public class SimpleApp {
 #### 步骤2：编写Maven依赖文件（pom.xml）
 ```bash
 # 进入项目根目录
-cd ./sparkapp2
+cd ~/sparkapp2
 # 创建pom.xml文件
 vim pom.xml
 ```
 复制以下依赖内容：
 ```xml
 <project>
-    <groupId>cn.edu.buct</groupId>
+    <groupId>cn.edu.xmu</groupId>
     <artifactId>simple-project</artifactId>
     <modelVersion>4.0.0</modelVersion>
-    <name>Simple Java Project</name>
+    <name>Simple Project</name>
     <packaging>jar</packaging>
     <version>1.0</version>
+    <repositories>
+        <repository>
+            <id>jboss</id>
+            <name>JBoss Repository</name>
+            <url>http://repository.jboss.com/maven2/</url>
+        </repository>
+    </repositories>
     <dependencies>
-        <!-- Spark Core依赖 -->
-        <dependency>
+        <dependency> <!-- Spark dependency -->
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.12</artifactId>
             <version>3.4.0</version>
         </dependency>
     </dependencies>
-    <build>
-        <sourceDirectory>src/main/java</sourceDirectory>
-        <plugins>
-            <!-- Java编译插件 -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
-                <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
 </project>
 ```
 
 #### 步骤3：打包并执行应用
 ```bash
 # 1. 打包（需提前安装Maven，验证：mvn -v）
-mvn clean package -Dmaven.test.skip=true
+cd ~/sparkapp2
+find .
+cd ~/sparkapp2
+/usr/local/maven/bin/mvn package
 
 # 2. 使用spark-submit提交应用
-/usr/local/spark/bin/spark-submit --class "SimpleApp" target/simple-project-1.0.jar 2>&1 | grep "Lines with a"
+/usr/local/spark/bin/spark-submit --class "SimpleApp" ~/sparkapp2/target/simple-project-1.0.jar 2>&1 | grep "Lines with a"
 ```
 
 #### 预期结果
@@ -260,41 +249,38 @@ vim ./sparkapp3/src/main/scala/SimpleApp.scala
 ```
 将以下代码复制到文件中：
 ```scala
+/* SimpleApp.scala */
 import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext._
 import org.apache.spark.SparkConf
-
+ 
 object SimpleApp {
-    def main(args: Array[String]): Unit = {
-        val logFile = "file:///usr/local/spark/README.md"
-        // 配置Spark应用（默认本地模式，可通过spark-submit指定）
-        val conf = new SparkConf().setAppName("Simple Scala Application")
-        val sc = new SparkContext(conf)
-        // 加载文件（指定2个分区）并缓存
-        val logData = sc.textFile(logFile, 2).cache()
-        // 统计含"a"和"b"的行数（Scala匿名函数简化语法）
-        val numAs = logData.filter(line => line.contains("a")).count()
-        val numBs = logData.filter(line => line.contains("b")).count()
-        // 格式化输出结果
-        println(s"Lines with a: $numAs, Lines with b: $numBs")
-        sc.stop()
+        def main(args: Array[String]) {
+            val logFile = "file:///usr/local/spark/README.md" // Should be some file on your system
+            val conf = new SparkConf().setAppName("Simple Application")
+            val sc = new SparkContext(conf)
+            val logData = sc.textFile(logFile, 2).cache()
+            val numAs = logData.filter(line => line.contains("a")).count()
+            val numBs = logData.filter(line => line.contains("b")).count()
+            println("Lines with a: %s, Lines with b: %s".format(numAs, numBs))
+        }
     }
-}
 ```
 
 #### 步骤2：编写Maven依赖文件（pom.xml）
 ```bash
 # 进入项目根目录
-cd ./sparkapp3
+cd ~/sparkapp3
 # 创建pom.xml文件
 vim pom.xml
 ```
 复制以下依赖内容：
 ```xml
 <project>
-    <groupId>cn.edu.buct</groupId>
+    <groupId>cn.edu.xmu</groupId>
     <artifactId>simple-project</artifactId>
     <modelVersion>4.0.0</modelVersion>
-    <name>Simple Scala Project</name>
+    <name>Simple Project</name>
     <packaging>jar</packaging>
     <version>1.0</version>
     <repositories>
@@ -305,56 +291,47 @@ vim pom.xml
         </repository>
     </repositories>
     <dependencies>
-        <!-- Spark Core依赖（对应Scala 2.12版本） -->
-        <dependency>
+        <dependency> <!-- Spark dependency -->
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.12</artifactId>
             <version>3.4.0</version>
         </dependency>
     </dependencies>
-    <build>
-        <sourceDirectory>src/main/scala</sourceDirectory>
-        <plugins>
-            <!-- Scala编译插件 -->
-            <plugin>
-                <groupId>org.scala-tools</groupId>
-                <artifactId>maven-scala-plugin</artifactId>
-                <version>2.15.2</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <scalaVersion>2.12.17</scalaVersion>
-                    <args>
-                        <arg>-target:jvm-1.8</arg>
-                    </args>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
+
+  <build>
+    <sourceDirectory>src/main/scala</sourceDirectory>
+    <plugins>
+      <plugin>
+        <groupId>org.scala-tools</groupId>
+        <artifactId>maven-scala-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <scalaVersion>2.12.17</scalaVersion>
+          <args>
+            <arg>-target:jvm-1.8</arg>
+          </args>
+        </configuration>
+    </plugin>
+    </plugins>
+</build>
 </project>
 ```
 
 #### 步骤3：打包并执行应用
 ```bash
-# 1. 打包（跳过测试）
-mvn clean package -Dmaven.test.skip=true
-
+# 1. 打包
+cd  ~/sparkapp3
+/usr/local/maven/bin/mvn  package
 # 2. 提交应用到Spark
-/usr/local/spark/bin/spark-submit --class "SimpleApp" target/simple-project-1.0.jar
+/usr/local/spark/bin/spark-submit --class "SimpleApp" ~/sparkapp3/target/simple-project-1.0.jar 2>&1 | grep "Lines with a:"
 ```
 
 #### 预期结果
 输出：`Lines with a: 72, Lines with b: 39`（与Java应用结果一致，验证代码正确性）
 
-## 五、演示总结
-老师，本次实验已完整演示以下核心内容：
-1. 成功完成Spark环境的安装与配置，通过SparkPi示例验证环境可用性；
-2. 熟练使用SparkShell进行RDD的加载、过滤、统计等交互式操作；
-3. 分别使用Java和Scala语言开发Spark独立应用，通过Maven打包并提交运行，实现了文本内容的统计需求，结果一致且正确。
-
-实验过程中，我掌握了Spark的核心概念（RDD、SparkContext、惰性计算）、环境配置要点以及API开发流程，达到了实验目标。
