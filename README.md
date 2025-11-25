@@ -45,12 +45,21 @@ bin/run-example SparkPi
 ```bash
 # 1. 启动SparkShell（local[*]表示使用本地所有CPU核心）
 spark-shell
+# 启动SparkShell，设置日志级别为WARN（减少冗余日志，只看关键信息），使用本地所有CPU核心
+spark-shell --master local[*] --conf spark.driver.extraJavaOptions="-Dlog4j.configuration=file:///usr/local/spark/conf/log4j2.properties"
 ```
+
+- 启动成功后，控制台会显示：`Spark context available as 'sc'` 和 `Spark session available as 'spark'`，说明环境初始化完成。
 
 进入Scala交互环境后，执行以下命令：
 ```scala
-# 2. 加载本地文件（Spark自带的README.md），创建RDD
+# 2.1 加载Spark自带的README.md文件（本地路径，前缀file://不可省略），创建文本RDD
 val textFile = sc.textFile("file:///usr/local/spark/README.md")
+# 输出提示：textFile: org.apache.spark.rdd.RDD[String] = file:///usr/local/spark/README.md MapPartitionsRDD[1] at textFile at <console>:23
+
+# 2.2 查看RDD的分区数（默认与CPU核心数一致，本地模式下为local[*]的核心数）
+textFile.getNumPartitions
+# 预期输出：Int = 2
 
 # 3. 统计RDD的行数（count操作触发计算）
 textFile.count()  # 预期输出：125
@@ -67,6 +76,79 @@ textFile.map(line => line.split(" ").length).reduce((a, b) => math.max(a, b))  #
 
 # 7. 退出SparkShell
 :quit
+```
+
+### 行动操作：触发计算，获取结果（体现惰性计算）
+行动操作会触发之前所有转换操作的执行，返回具体结果或写入外部存储。
+```scala
+# 3.1 统计RDD总行数（基础行动操作，触发计算）
+val totalLines = textFile.count()
+# 预期输出：totalLines: Long = 125（与实验文档一致，确认文件加载正确）
+
+# 3.2 获取RDD的前5行内容（抽样查看，避免打印所有数据）
+textFile.take(5)
+# 预期输出：
+# Array(
+#   "# Apache Spark", 
+#   "", 
+#   "Spark is a unified analytics engine for large-scale data processing. It provides", 
+#   "high-level APIs in Scala, Java, Python, and R, and an optimized engine that", 
+#   "supports general computation graphs for data analysis."
+# )
+
+# 3.3 检查是否包含指定内容（判断RDD中是否有含"Python"的行）
+val hasPython = textFile.filter(line => line.contains("Python")).isEmpty
+# 预期输出：hasPython: Boolean = false（说明有含"Python"的行）
+textFile.filter(line => line.contains("Python")).take(1)  # 查看其中一行
+# 预期输出：Array("high-level APIs in Scala, Java, Python, and R, and an optimized engine that")
+```
+
+
+### 转换操作：构建计算逻辑（不触发执行）
+转换操作会生成新的RDD，记录与父RDD的依赖关系，不立即执行计算，仅在行动操作触发时才运行。
+```scala
+# 1 过滤非空行（去除README中的空行，生成新RDD）
+val nonEmptyLines = textFile.filter(line => !line.trim.isEmpty)
+# 输出提示：nonEmptyLines: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[2] at filter at <console>:25
+# 此时未触发计算，需后续行动操作触发
+
+# 2 每行单词拆分（flatMap与map的区别：flatMap会将数组“扁平化”，适合单词拆分）
+// map：每行返回一个单词数组，RDD类型为RDD[Array[String]]
+val wordArrays = nonEmptyLines.map(line => line.split(" "))
+// flatMap：每行的单词数组拆分为单个单词，RDD类型为RDD[String]（最终所有单词在一个RDD中）
+val words = nonEmptyLines.flatMap(line => line.split(" "))
+# 输出提示：words: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[3] at flatMap at <console>:25
+
+# 3 单词去重（统计不重复的单词数量）
+val distinctWords = words.distinct()
+# 输出提示：distinctWords: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[4] at distinct at <console>:25
+# 打印去重后单词
+distinctWords.foreach(println)
+```
+
+
+### 综合操作：转换+行动结合（实战场景）
+#### 场景1：单词频次统计（经典案例）
+```scala
+# 1 统计每个单词出现的次数（步骤：单词→(单词,1)→按单词聚合求和）
+val wordCounts = words
+  .map(word => (word.toLowerCase, 1))  // 统一转为小写，避免"Spark"和"spark"被视为不同单词
+  .reduceByKey((a, b) => a + b)  // 按单词（key）聚合，value累加（统计次数）
+
+# 2 查看出现次数前10的单词（按次数降序排序）
+val top10Words = wordCounts.sortBy(_._2, ascending = false).take(10)
+top10Words.foreach(println)  # 循环打印结果
+# 预期输出（示例，具体次数可能略有差异）：
+# (the,22)
+# (a,18)
+# (spark,15)
+# (for,12)
+# (and,10)
+# (to,9)
+# (in,8)
+# (is,7)
+# (data,6)
+# (processing,5)
 ```
 
 ## 四、第三部分：基于Spark API的独立应用开发
