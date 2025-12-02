@@ -53,11 +53,11 @@ spark-shell --master local[*] --conf spark.driver.extraJavaOptions="-Dlog4j.conf
 
 进入Scala交互环境后，执行以下命令：
 ```scala
-# 2.1 加载Spark自带的README.md文件（本地路径，前缀file://不可省略），创建文本RDD
+# 1. 加载Spark自带的README.md文件（本地路径，前缀file://不可省略），创建文本RDD
 val textFile = sc.textFile("file:///usr/local/spark/README.md")
 # 输出提示：textFile: org.apache.spark.rdd.RDD[String] = file:///usr/local/spark/README.md MapPartitionsRDD[1] at textFile at <console>:23
 
-# 2.2 查看RDD的分区数（默认与CPU核心数一致，本地模式下为local[*]的核心数）
+# 2. 查看RDD的分区数（默认与CPU核心数一致，本地模式下为local[*]的核心数）
 textFile.getNumPartitions
 # 预期输出：Int = 2
 
@@ -81,11 +81,11 @@ textFile.map(line => line.split(" ").length).reduce((a, b) => math.max(a, b))  #
 ### 行动操作：触发计算，获取结果（体现惰性计算）
 行动操作会触发之前所有转换操作的执行，返回具体结果或写入外部存储。
 ```scala
-# 3.1 统计RDD总行数（基础行动操作，触发计算）
+# 1 统计RDD总行数（基础行动操作，触发计算）
 val totalLines = textFile.count()
 # 预期输出：totalLines: Long = 125（与实验文档一致，确认文件加载正确）
 
-# 3.2 获取RDD的前5行内容（抽样查看，避免打印所有数据）
+# 2 获取RDD的前5行内容（抽样查看，避免打印所有数据）
 textFile.take(5)
 # 预期输出：
 # Array(
@@ -96,7 +96,7 @@ textFile.take(5)
 #   "supports general computation graphs for data analysis."
 # )
 
-# 3.3 检查是否包含指定内容（判断RDD中是否有含"Python"的行）
+# 3 检查是否包含指定内容（判断RDD中是否有含"Python"的行）
 val hasPython = textFile.filter(line => line.contains("Python")).isEmpty
 # 预期输出：hasPython: Boolean = false（说明有含"Python"的行）
 textFile.filter(line => line.contains("Python")).take(1)  # 查看其中一行
@@ -131,9 +131,11 @@ distinctWords.foreach(println)
 #### 场景1：单词频次统计（经典案例）
 ```scala
 # 1 统计每个单词出现的次数（步骤：单词→(单词,1)→按单词聚合求和）
+  // 统一转为小写，避免"Spark"和"spark"被视为不同单词
+  // 按单词（key）聚合，value累加（统计次数）
 val wordCounts = words
-  .map(word => (word.toLowerCase, 1))  // 统一转为小写，避免"Spark"和"spark"被视为不同单词
-  .reduceByKey((a, b) => a + b)  // 按单词（key）聚合，value累加（统计次数）
+  .map(word => (word.toLowerCase, 1))
+  .reduceByKey((a, b) => a + b)
 
 # 2 查看出现次数前10的单词（按次数降序排序）
 val top10Words = wordCounts.sortBy(_._2, ascending = false).take(10)
@@ -334,4 +336,45 @@ cd  ~/sparkapp3
 
 #### 预期结果
 输出：`Lines with a: 72, Lines with b: 39`（与Java应用结果一致，验证代码正确性）
+
+
+### 如何切换运行 Java 或 Scala 程序
+
+#### 🔹 运行 Java 版本
+1. 修改 pom 设置 Java MainClass：
+```xml
+<mainClass>com.example.SparkJavaApp</mainClass>
+```
+
+2. 打包
+```bash
+mvn clean package
+```
+
+3. 执行
+```bash
+spark-submit \
+ --class com.example.SparkJavaApp \
+ target/spark-maven-app-1.0-SNAPSHOT-jar-with-dependencies.jar \
+ file:///usr/local/spark/README.md
+```
+
+#### 🔹 运行 Scala 版本
+1. 只需修改 pom 中 `<mainClass>` 为 Scala 类：
+```xml
+<mainClass>com.example.SparkScalaApp</mainClass>
+```
+
+2. 重新打包：
+```bash
+mvn clean package
+```
+
+3. 运行方式：
+```bash
+spark-submit \
+ --class com.example.SparkScalaApp \
+ target/spark-maven-app-1.0-SNAPSHOT-jar-with-dependencies.jar \
+ file:///usr/local/spark/README.md
+```
 
